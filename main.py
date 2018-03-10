@@ -19,7 +19,7 @@ if __name__ == "__main__":
     mkdir_p(root_log_dir)
     batch_size = FLAGS.batch_size
     max_iters = FLAGS.max_iters
-    sample_size = 512
+    sample_size = 256
     GAN_learn_rate = FLAGS.learn_rate
 
     OPER_FLAG = FLAGS.OPER_FLAG
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
         for i in range(FLAGS.flag):
 
-            t = False if (i % 2 == 0) else True
+            t = True if (i % 2 == 0) else False
             pggan_checkpoint_dir_write = "./model_birds_{}/{}/".format(OPER_FLAG, fl[i])
             sample_path = "./PGGanBirds/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
             mkdir_p(pggan_checkpoint_dir_write)

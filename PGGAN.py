@@ -28,35 +28,54 @@ class PGGAN(object):
         self.images = tf.placeholder(tf.float32, [batch_size, self.output_size, self.output_size, self.channel])
         self.z = tf.placeholder(tf.float32, [self.batch_size, self.sample_size])
         self.alpha_tra = tf.Variable(initial_value=0.0, trainable=False,name='alpha_tra')
+        self.tdim = 256 
 
     def build_model_PGGan(self):
+	img_size = self.output_size
+	t_real_image = tf.placeholder('float32', [self.options['batch_size'],img_size, img_size, 3 ], name = 'real_image')
+	t_wrong_image = tf.placeholder('float32', [self.options['batch_size'],img_size, img_size, 3 ], name = 'wrong_image')
+	t_real_caption = tf.placeholder('float32', [self.options['batch_size'], self.options['caption_vector_length']], name = 'real_caption_input')
+        
+	self.fake_images = self.generate(self.z, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
 
-        self.fake_images = self.generate(self.z, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+        #_, self.D_pro_logits = self.discriminate(self.images, reuse=False, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+        #_, self.G_pro_logits = self.discriminate(self.fake_images, reuse=True,pg= self.pg, t=self.trans, alpha_trans=self.alpha_tra)
 
-        _, self.D_pro_logits = self.discriminate(self.images, reuse=False, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
-        _, self.G_pro_logits = self.discriminate(self.fake_images, reuse=True,pg= self.pg, t=self.trans, alpha_trans=self.alpha_tra)
-
+	disc_real_image, disc_real_image_logits   = self.discriminate(t_real_image, t_real_caption, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	disc_wrong_image, disc_wrong_image_logits   = self.discriminate(t_wrong_image, t_real_caption, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	disc_fake_image, disc_fake_image_logits   = self.discriminate(self.fake_image, t_real_caption, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	
         # the defination of loss for D and G
-        self.D_loss = tf.reduce_mean(self.G_pro_logits) - tf.reduce_mean(self.D_pro_logits)
-        self.G_loss = -tf.reduce_mean(self.G_pro_logits)
+#        self.D_loss = tf.reduce_mean(self.G_pro_logits) - tf.reduce_mean(self.D_pro_logits)
+#        self.G_loss = -tf.reduce_mean(self.G_pro_logits)
+#
+#        # gradient penalty from WGAN-GP
+#        self.differences = self.fake_images - self.images
+#        self.alpha = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0., maxval=1.)
+#        interpolates = self.images + (self.alpha * self.differences)
+#        _, discri_logits= self.discriminate(interpolates, reuse=True, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+#        gradients = tf.gradients(discri_logits, [interpolates])[0]
+#
 
-        # gradient penalty from WGAN-GP
-        self.differences = self.fake_images - self.images
-        self.alpha = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0., maxval=1.)
-        interpolates = self.images + (self.alpha * self.differences)
-        _, discri_logits= self.discriminate(interpolates, reuse=True, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
-        gradients = tf.gradients(discri_logits, [interpolates])[0]
+	#loss acoording to reid scott
+	self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_fake_image_logits, tf.ones_like(disc_fake_image)))
+		
+	d_loss1 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_real_image_logits, tf.ones_like(disc_real_image)))
+	d_loss2 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_wrong_image_logits, tf.zeros_like(disc_wrong_image)))
+	d_loss3 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_fake_image_logits, tf.zeros_like(disc_fake_image)))
+
+	self.D_loss = d_loss1 + d_loss2 + d_loss3
 
         ##2 norm
-        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
-        self.gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-        tf.summary.scalar("gp_loss", self.gradient_penalty)
-
-        self.D_origin_loss = self.D_loss
-
-        self.D_loss += 10 * self.gradient_penalty
-        self.D_loss += 0.001 * tf.reduce_mean(tf.square(self.D_pro_logits - 0.0))
-
+#        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
+#        self.gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
+#        tf.summary.scalar("gp_loss", self.gradient_penalty)
+#
+#        self.D_origin_loss = self.D_loss
+#
+#        self.D_loss += 10 * self.gradient_penalty
+#        self.D_loss += 0.001 * tf.reduce_mean(tf.square(self.D_pro_logits - 0.0))
+#
         self.log_vars.append(("generator_loss", self.G_loss))
         self.log_vars.append(("discriminator_loss", self.D_loss))
 
@@ -220,7 +239,7 @@ class PGGAN(object):
         tf.reset_default_graph()
 
 
-    def discriminate(self, conv, reuse=False, pg=1, t=False, alpha_trans=0.01):
+    def discriminate(self, conv, t_text_embedding, reuse=False, pg=1, t=False, alpha_trans=0.01):
 
         #dis_as_v = []
         with tf.variable_scope("discriminator") as scope:
@@ -256,11 +275,13 @@ class PGGAN(object):
 
             return tf.nn.sigmoid(output), output
 
-    def generate(self, z_var, pg=1, t=False, alpha_trans=0.0):
+    def generate(self, z_var, t_text_embedding, pg=1, t=False, alpha_trans=0.0):
 
         with tf.variable_scope('generator') as scope:
+            reduced_text_embedding = ops.lrelu( ops.linear(t_text_embedding, self.tdim, 'g_embedding') )
+            z_concat = tf.concat(1,[z_var,reduced_text_embedding])
+            de = tf.reshape(z_concat, [self.batch_size, 1, 1, tf.cast(self.get_nf(1),tf.int32)])
 
-            de = tf.reshape(z_var, [self.batch_size, 1, 1, tf.cast(self.get_nf(1),tf.int32)])
             de = conv2d(de, output_dim= self.get_nf(1), k_h=4, k_w=4, d_w=1, d_h=1, padding='Other', name='gen_n_1_conv')
             de = Pixl_Norm(lrelu(de))
             de = tf.reshape(de, [self.batch_size, 4, 4, tf.cast(self.get_nf(1),tf.int32)])
@@ -293,7 +314,7 @@ class PGGAN(object):
             else:
                 de = de
 
-            return de
+            return de   #tanh given in text to image code. will this work?
 
     def get_nf(self, stage):
         return min(1024 / (2 **(stage * 1)), 512)
