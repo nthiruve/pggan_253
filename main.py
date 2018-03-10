@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
         for i in range(FLAGS.flag):
 
-            t = True if (i % 2 == 0) else False
+            t = False if (i % 2 == 0) else True
             pggan_checkpoint_dir_write = "./model_birds_{}/{}/".format(OPER_FLAG, fl[i])
             sample_path = "./PGGanBirds/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
             mkdir_p(pggan_checkpoint_dir_write)
