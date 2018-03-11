@@ -1,5 +1,5 @@
 import tensorflow as tf
-from ops import lrelu, conv2d, fully_connect, upscale, Pixl_Norm, avgpool2d, WScaleLayer, MinibatchstateConcat
+from ops import lrelu, conv2d, fully_connect, linear, upscale, Pixl_Norm, avgpool2d, WScaleLayer, MinibatchstateConcat
 from utils import save_images
 from utils import CelebA
 import numpy as np
@@ -29,21 +29,22 @@ class PGGAN(object):
         self.z = tf.placeholder(tf.float32, [self.batch_size, self.sample_size])
         self.alpha_tra = tf.Variable(initial_value=0.0, trainable=False,name='alpha_tra')
         self.tdim = 256 
+        self.text_embedding = tf.placeholder(tf.float32, [self.batch_size, self.tdim])
 
     def build_model_PGGan(self):
 	img_size = self.output_size
-	t_real_image = tf.placeholder('float32', [self.options['batch_size'],img_size, img_size, 3 ], name = 'real_image')
-	t_wrong_image = tf.placeholder('float32', [self.options['batch_size'],img_size, img_size, 3 ], name = 'wrong_image')
-	t_real_caption = tf.placeholder('float32', [self.options['batch_size'], self.options['caption_vector_length']], name = 'real_caption_input')
+	#TODO FIXME : add to self later
+        #t_wrong_image = tf.placeholder('float32', [self.options['batch_size'],img_size, img_size, 3 ], name = 'wrong_image')
         
-	self.fake_images = self.generate(self.z, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	self.fake_images = self.generate(self.z, self.text_embedding, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
 
         #_, self.D_pro_logits = self.discriminate(self.images, reuse=False, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
         #_, self.G_pro_logits = self.discriminate(self.fake_images, reuse=True,pg= self.pg, t=self.trans, alpha_trans=self.alpha_tra)
 
-	disc_real_image, disc_real_image_logits   = self.discriminate(t_real_image, t_real_caption, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
-	disc_wrong_image, disc_wrong_image_logits   = self.discriminate(t_wrong_image, t_real_caption, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
-	disc_fake_image, disc_fake_image_logits   = self.discriminate(self.fake_image, t_real_caption, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	disc_real_image, disc_real_image_logits   = self.discriminate(self.images, self.text_embedding, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	#TODO FIXME !!! uncomment below loss
+        #disc_wrong_image, disc_wrong_image_logits   = self.discriminate(t_wrong_image, t_real_caption, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+	disc_fake_image, disc_fake_image_logits   = self.discriminate(self.fake_images, self.text_embedding, reuse = True, pg = self.pg, t=self.trans, alpha_trans=self.alpha_tra)
 	
         # the defination of loss for D and G
 #        self.D_loss = tf.reduce_mean(self.G_pro_logits) - tf.reduce_mean(self.D_pro_logits)
@@ -58,13 +59,14 @@ class PGGAN(object):
 #
 
 	#loss acoording to reid scott
-	self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_fake_image_logits, tf.ones_like(disc_fake_image)))
+	self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.ones_like(disc_fake_image)))
 		
-	d_loss1 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_real_image_logits, tf.ones_like(disc_real_image)))
-	d_loss2 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_wrong_image_logits, tf.zeros_like(disc_wrong_image)))
-	d_loss3 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_fake_image_logits, tf.zeros_like(disc_fake_image)))
+	d_loss1 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real_image_logits, labels=tf.ones_like(disc_real_image)))
+	#TODO FIXME !!! uncomment
+        #d_loss2 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_wrong_image_logits, tf.zeros_like(disc_wrong_image)))
+	d_loss3 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.zeros_like(disc_fake_image)))
 
-	self.D_loss = d_loss1 + d_loss2 + d_loss3
+	self.D_loss = d_loss1 +  d_loss3 #+ d_loss2
 
         ##2 norm
 #        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
@@ -186,6 +188,9 @@ class PGGAN(object):
                 for i in range(n_critic):
 
                     sample_z = np.random.normal(size=[self.batch_size, self.sample_size])
+
+                    text_em = np.random.normal(size=[self.batch_size, self.tdim])
+
                     train_list = self.data_In.getNextBatch(batch_num, self.batch_size)
                     realbatch_array = CelebA.getShapeForData(train_list, resize_w=self.output_size)
 
@@ -197,21 +202,21 @@ class PGGAN(object):
                         low_realbatch_array = scipy.ndimage.zoom(low_realbatch_array, zoom=[1, 2, 2, 1])
                         realbatch_array = alpha * realbatch_array + (1 - alpha) * low_realbatch_array
 
-                    sess.run(opti_D, feed_dict={self.images: realbatch_array, self.z: sample_z})
+                    sess.run(opti_D, feed_dict={self.images: realbatch_array, self.z: sample_z, self.text_embedding: text_em})
                     batch_num += 1
 
                 # optimization G
-                sess.run(opti_G, feed_dict={self.z: sample_z})
+                sess.run(opti_G, feed_dict={self.z: sample_z, self.text_embedding: text_em})
 
-                summary_str = sess.run(summary_op, feed_dict={self.images: realbatch_array, self.z: sample_z})
+                summary_str = sess.run(summary_op, feed_dict={self.images: realbatch_array, self.z: sample_z, self.text_embedding: text_em})
                 summary_writer.add_summary(summary_str, step)
                 # the alpha of fake_in process
                 sess.run(alpha_tra_assign, feed_dict={step_pl: step})
 
                 if step % 1000 == 0:
 
-                    D_loss, G_loss, D_origin_loss, alpha_tra = sess.run([self.D_loss, self.G_loss, self.D_origin_loss,self.alpha_tra], feed_dict={self.images: realbatch_array, self.z: sample_z})
-                    print("PG %d, step %d: D loss=%.7f G loss=%.7f, D_or loss=%.7f, opt_alpha_tra=%.7f" % (self.pg, step, D_loss, G_loss, D_origin_loss, alpha_tra))
+                    D_loss, G_loss, alpha_tra = sess.run([self.D_loss, self.G_loss, self.alpha_tra], feed_dict={self.images: realbatch_array, self.z: sample_z, self.text_embedding: text_em})
+                    print("PG %d, step %d: D loss=%.7f G loss=%.7f, opt_alpha_tra=%.7f" % (self.pg, step, D_loss, G_loss, alpha_tra))
 
                     realbatch_array = np.clip(realbatch_array, -1, 1)
                     save_images(realbatch_array[0:self.batch_size], [2, self.batch_size/2],
@@ -225,7 +230,7 @@ class PGGAN(object):
                                     '{}/{:02d}_real_lower.png'.format(self.sample_path, step))
                    
                     fake_image = sess.run(self.fake_images,
-                                          feed_dict={self.images: realbatch_array, self.z: sample_z})
+                                          feed_dict={self.images: realbatch_array, self.z: sample_z, self.text_embedding: text_em})
                     fake_image = np.clip(fake_image, -1, 1)
                     save_images(fake_image[0:self.batch_size], [2, self.batch_size/2], '{}/{:02d}_train.png'.format(self.sample_path, step))
 
@@ -240,6 +245,8 @@ class PGGAN(object):
 
 
     def discriminate(self, conv, t_text_embedding, reuse=False, pg=1, t=False, alpha_trans=0.01):
+
+        #NOTE: discriminate from PGGAN does not use batch norm, add later?
 
         #dis_as_v = []
         with tf.variable_scope("discriminator") as scope:
@@ -268,18 +275,33 @@ class PGGAN(object):
                 conv2d(conv, output_dim=self.get_nf(1), k_w=3, k_h=3, d_h=1, d_w=1, name='dis_n_conv_1_{}'.format(conv.shape[1])))
             conv = lrelu(
                 conv2d(conv, output_dim=self.get_nf(1), k_w=4, k_h=4, d_h=1, d_w=1, padding='VALID', name='dis_n_conv_2_{}'.format(conv.shape[1])))
-            conv = tf.reshape(conv, [self.batch_size, -1])
+
+
+            #ADD TEXT EMBEDDING TO THE NETWORK
+            reduced_text_embeddings = lrelu(linear(t_text_embedding, self.tdim, 'd_embedding'))
+            reduced_text_embeddings = tf.expand_dims(reduced_text_embeddings,1)
+            reduced_text_embeddings = tf.expand_dims(reduced_text_embeddings,2)
+            #NOTE: output of prev layer is a 1x1 volume, so we don't tile by 4
+            tiled_embeddings = tf.tile(reduced_text_embeddings, [1,1,1,1], name='tiled_embeddings') #last conv layer op should be 4x4
+		
+            conv_concat = tf.concat( [conv, tiled_embeddings], 3,  name='dis_conv_concat_{}'.format(conv.shape[1]))
+            #NOTE: changed the output dims here as compared to text to image code
+            conv_new = lrelu((conv2d(conv_concat, output_dim=self.get_nf(1), k_h=1,k_w=1,d_h=1,d_w=1, name = 'dis_conv_new_{}'.format(conv_concat.shape[1])))) #4
+
+
+
+            conv_new = tf.reshape(conv_new, [self.batch_size, -1])
 
             #for D
-            output = fully_connect(conv, output_size=1, scope='dis_n_fully')
+            output = fully_connect(conv_new, output_size=1, scope='dis_n_fully')
 
             return tf.nn.sigmoid(output), output
 
     def generate(self, z_var, t_text_embedding, pg=1, t=False, alpha_trans=0.0):
 
         with tf.variable_scope('generator') as scope:
-            reduced_text_embedding = ops.lrelu( ops.linear(t_text_embedding, self.tdim, 'g_embedding') )
-            z_concat = tf.concat(1,[z_var,reduced_text_embedding])
+            reduced_text_embedding = lrelu( linear(t_text_embedding, self.tdim, 'g_embeddings') )
+            z_concat = tf.concat([z_var,reduced_text_embedding], 1)
             de = tf.reshape(z_concat, [self.batch_size, 1, 1, tf.cast(self.get_nf(1),tf.int32)])
 
             de = conv2d(de, output_dim= self.get_nf(1), k_h=4, k_w=4, d_w=1, d_h=1, padding='Other', name='gen_n_1_conv')

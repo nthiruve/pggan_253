@@ -8,7 +8,8 @@ flags = tf.app.flags
 flags.DEFINE_integer("OPER_FLAG", 0, "the flag of opertion: 0 is for training ")
 flags.DEFINE_string("path" , 'birds/train_images/', "the path of training data, for example /home/hehe/celebA/")
 flags.DEFINE_integer("batch_size", 16, "batch size")
-flags.DEFINE_integer("max_iters", 32000, "the maxmization of training number")
+#flags.DEFINE_integer("max_iters", 32000, "the maxmization of training number")
+flags.DEFINE_integer("max_iters", 2, "the maximum training iterations")
 flags.DEFINE_float("learn_rate", 0.0001, "the learning rate for G and D networks")
 flags.DEFINE_float("flag", 4, "the FLAG of gan training process")
 
@@ -35,7 +36,7 @@ if __name__ == "__main__":
 
         for i in range(FLAGS.flag):
 
-            t = True if (i % 2 == 0) else False
+            t = False if (i % 2 == 0) else True
             pggan_checkpoint_dir_write = "./model_birds_{}/{}/".format(OPER_FLAG, fl[i])
             sample_path = "./PGGanBirds/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
             mkdir_p(pggan_checkpoint_dir_write)
