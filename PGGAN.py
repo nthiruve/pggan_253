@@ -4,6 +4,7 @@ from utils import save_images
 from utils import CelebA
 import numpy as np
 import scipy
+import pickle
 
 class PGGAN(object):
 
@@ -29,8 +30,20 @@ class PGGAN(object):
         self.z = tf.placeholder(tf.float32, [self.batch_size, self.sample_size])
         self.alpha_tra = tf.Variable(initial_value=0.0, trainable=False,name='alpha_tra')
         self.tdim = 256 
-        self.text_embedding = tf.placeholder(tf.float32, [self.batch_size, self.tdim])
-
+        self.full_embedding_dim = 1024
+        self.text_embedding = tf.placeholder(tf.float32, [self.batch_size, self.full_embedding_dim])
+        self.file_idx = {}
+        with open('birds/birds_emb/train/filenames.pickle','rb') as f:
+            file_names = pickle.load(f)
+            file_names = np.array(file_names)
+            for index,f_n in enumerate(file_names):
+                self.file_idx[str(f_n).split('/')[-1]] = index
+        with open('birds/birds_emb/train/char-CNN-RNN-embeddings.pickle','rb') as f:
+            embeddings = pickle.load(f)
+            self.embeddings_all = np.array(embeddings)
+            
+        #print "Embedding check :"+str(self.embeddings_all[self.file_idx['Laysan_Albatross_0002_1027']][0][:20])
+            
     def build_model_PGGan(self):
 	img_size = self.output_size
 	#TODO FIXME : add to self later
@@ -189,11 +202,19 @@ class PGGAN(object):
 
                     sample_z = np.random.normal(size=[self.batch_size, self.sample_size])
 
-                    text_em = np.random.normal(size=[self.batch_size, self.tdim])
+                    #text_em = np.random.normal(size=[self.batch_size, self.tdim])
 
                     train_list = self.data_In.getNextBatch(batch_num, self.batch_size)
                     realbatch_array = CelebA.getShapeForData(train_list, resize_w=self.output_size)
-
+                    text_em = []
+                    for file_name in train_list:
+                        key = file_name.split('/')[-1].replace('.jpg','')
+                        idx = self.file_idx[key]
+                        caption_idx = np.random.randint(0,10)
+                        text_em.append(self.embeddings_all[idx][caption_idx])
+                    text_em = np.array(text_em)
+                    #print "Text em shape: "+str(text_em.shape)
+                    
                     if self.trans and self.pg != 0:
 
                         alpha = np.float(step) / self.max_iters
