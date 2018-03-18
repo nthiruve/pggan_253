@@ -33,15 +33,23 @@ class PGGAN(object):
         self.full_embedding_dim = 1024
         self.text_embedding = tf.placeholder(tf.float32, [self.batch_size, self.full_embedding_dim])
         self.file_idx = {}
-        with open('birds/birds_emb/train/filenames.pickle','rb') as f:
+        with open('flowers/train/filenames.pickle','rb') as f:
             file_names = pickle.load(f)
             file_names = np.array(file_names)
             for index,f_n in enumerate(file_names):
                 self.file_idx[str(f_n).split('/')[-1]] = index
-        with open('birds/birds_emb/train/char-CNN-RNN-embeddings.pickle','rb') as f:
+        with open('flowers/train/char-CNN-RNN-embeddings.pickle','rb') as f:
             embeddings = pickle.load(f)
             self.embeddings_all = np.array(embeddings)
-            
+        self.test_file_idx = {}
+        with open('flowers/test/filenames.pickle','rb') as f:
+            file_names = pickle.load(f)
+            file_names = np.array(file_names)
+            for index,f_n in enumerate(file_names):
+                self.test_file_idx[str(f_n).split('/')[-1]] = index
+        with open('flowers/test/char-CNN-RNN-embeddings.pickle','rb') as f:
+            test_embeddings = pickle.load(f)
+            self.test_embeddings_all = np.array(test_embeddings)    
         #print "Embedding check :"+str(self.embeddings_all[self.file_idx['Laysan_Albatross_0002_1027']][0][:20])
             
     def build_model_PGGan(self):
@@ -319,7 +327,7 @@ class PGGAN(object):
             return tf.nn.sigmoid(output), output
 
     def generate(self, z_var, t_text_embedding, pg=1, t=False, alpha_trans=0.0):
-
+        
         with tf.variable_scope('generator') as scope:
             reduced_text_embedding = lrelu( linear(t_text_embedding, self.tdim, 'g_embeddings') )
             z_concat = tf.concat([z_var,reduced_text_embedding], 1)
@@ -359,6 +367,54 @@ class PGGAN(object):
 
             return de   #tanh given in text to image code. will this work?
 
+    def test(self, test_list):
+
+        init = tf.global_variables_initializer()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+
+        with tf.Session(config=config) as sess:
+
+            sess.run(init)
+            summary_op = tf.summary.merge_all()
+            summary_writer = tf.summary.FileWriter(self.log_dir, sess.graph)
+            
+            self.saver.restore(sess, self.read_model_path)
+
+
+
+	    sample_z = np.random.normal(size=[self.batch_size, self.sample_size])
+
+	    #text_em = np.random.normal(size=[self.batch_size, self.tdim])
+
+	    # To be passed
+	    #test_list = self.data_In.getNextBatch(batch_num, self.batch_size)
+	    #realbatch_array = CelebA.getShapeForData(test_list, resize_w=self.output_size)
+	    text_em = []
+	    for file_name in test_list:
+		key = file_name
+		idx = self.file_idx[key]
+		#caption_idx = np.random.randint(0,10)
+                caption_idx=1
+                text_em.append(self.embeddings_all[idx][caption_idx])
+	    text_em = np.array(text_em)
+	    #print "Text em shape: "+str(text_em.shape)
+	    
+
+            #summary_str = sess.run(summary_op, feed_dict={self.images: realbatch_array, self.z: sample_z, self.text_embedding: text_em})
+            #summary_writer.add_summary(summary_str, step)
+               
+            fake_image = sess.run(self.fake_images,
+            		      feed_dict={#self.images: realbatch_array, 
+            			  self.z: sample_z, self.text_embedding: text_em})
+            fake_image = np.clip(fake_image, -1, 1)
+            save_images(fake_image[0:self.batch_size], [2, self.batch_size/2], 'generated_images/test_epoch5_2.png')
+            
+
+        tf.reset_default_graph()
+
+
+
     def get_nf(self, stage):
         return min(1024 / (2 **(stage * 1)), 512)
 
@@ -371,7 +427,7 @@ class PGGAN(object):
 
 
 
-
+ 
 
 
 

@@ -6,12 +6,12 @@ from utils import CelebA
 flags = tf.app.flags
 
 flags.DEFINE_integer("OPER_FLAG", 0, "the flag of opertion: 0 is for training ")
-flags.DEFINE_string("path" , 'birds/train_images/', "the path of training data, for example /home/hehe/celebA/")
+flags.DEFINE_string("path" , 'train_images/', "the path of training data, for example /home/hehe/celebA/")
 flags.DEFINE_integer("batch_size", 16, "batch size")
-flags.DEFINE_integer("max_iters", 32000, "the maxmization of training number")
+flags.DEFINE_integer("max_iters", 15000, "the maxmization of training number")
 #flags.DEFINE_integer("max_iters", 2, "the maximum training iterations")
 flags.DEFINE_float("learn_rate", 0.0001, "the learning rate for G and D networks")
-flags.DEFINE_float("flag", 11, "the FLAG of gan training process")
+flags.DEFINE_float("flag", 2, "the FLAG of gan training process")
 
 FLAGS = flags.FLAGS
 if __name__ == "__main__":
@@ -29,19 +29,19 @@ if __name__ == "__main__":
 
     if OPER_FLAG == 0:
 
-        fl = [1,2,2,3,3,4,4,5,5, 6, 6]
-        #fl = [5,5, 6, 6]
-        r_fl = [1,1,2,2,3,3,4,4,5, 5, 6]
-        #r_fl = [4,5, 5, 6]
+        #fl = [1,2,2,3,3,4,4,5,5, 6, 6]
+        fl = [ 6,6]
+        #r_fl = [1,1,2,2,3,3,4,4,5, 5, 6]
+        r_fl = [ 5,6]
 
         for i in range(FLAGS.flag):
 
-            t = False if (i % 2 == 0) else True
-            pggan_checkpoint_dir_write = "./model_birds_{}/{}/".format(OPER_FLAG, fl[i])
-            sample_path = "./PGGanBirds/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
+            t = True if (i % 2 == 0) else False
+            pggan_checkpoint_dir_write = "./model_flowers_{}/{}/".format(OPER_FLAG, fl[i])
+            sample_path = "./PGGanFlowers/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
             mkdir_p(pggan_checkpoint_dir_write)
             mkdir_p(sample_path)
-            pggan_checkpoint_dir_read = "./model_birds_{}/{}/".format(OPER_FLAG, r_fl[i])
+            pggan_checkpoint_dir_read = "./model_flowers_{}/{}/".format(OPER_FLAG, r_fl[i])
 
             pggan = PGGAN(batch_size=batch_size, max_iters=max_iters,
                             model_path=pggan_checkpoint_dir_write, read_model_path=pggan_checkpoint_dir_read,
