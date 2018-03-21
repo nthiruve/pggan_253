@@ -396,11 +396,15 @@ class PGGAN(object):
             idx = self.test_file_idx[key]
 		#caption_idx = np.random.randint(0,10)
             for i in range(10):
-                
-                text_em.append(self.embeddings_all[idx][caption_idx])
+                if caption_idx==-1:
+                    text_em.append(self.embeddings_all[idx][i])
+                else:
+                    text_em.append(self.embeddings_all[idx][caption_idx])
             for i in range(10):
-                
-                text_em.append(self.embeddings_all[idx][caption_idx])
+                if caption_idx==-1:
+                    text_em.append(self.embeddings_all[idx][i])
+                else:
+                    text_em.append(self.embeddings_all[idx][caption_idx])
             text_em = np.array(text_em)
 	    text_em = np.array(text_em[:16])
 	    #print "Text em shape: "+str(text_em.shape)
@@ -413,7 +417,7 @@ class PGGAN(object):
             		      feed_dict={#self.images: realbatch_array, 
             			  self.z: sample_z, self.text_embedding: text_em})
             fake_image = np.clip(fake_image, -1, 1)
-            save_images(fake_image[0:self.batch_size], [2, self.batch_size/2], 'generated_images/test'+key+'.jpg')
+            save_images(fake_image[0:10], [2, 5], 'generated_images/test_'+key+'.jpg') #changed this line to save 10 images corresponding to captions
             
 
         tf.reset_default_graph()

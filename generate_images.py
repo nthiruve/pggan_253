@@ -39,6 +39,14 @@ def main():
        #'image_06625', 'image_06757', 'image_04065',
        #'image_03155'
         t = False
+	f = open("captions_all.txt","a")
+	f_c = open(sys.argv[2],"r")
+	f.write(sys.argv[1]+'\n')
+        for line in f_c:
+            f.write(line)
+	f.write("----\n")
+	f.close()
+	f_c.close()
         pggan_checkpoint_dir_write = "./model_flowers_test/"
         sample_path = "./PGGanFlowers/sample_test/"
         mkdir_p(pggan_checkpoint_dir_write)
@@ -51,7 +59,7 @@ def main():
                       sample_path=sample_path, log_dir=root_log_dir, learn_rate=GAN_learn_rate, PG= r_fl, t=t)
 
         pggan.build_model_PGGan()
-        pggan.test(test_list,int(sys.argv[2]))
+        pggan.test(test_list,int(sys.argv[3]))
 
 if __name__ == "__main__":
     main()
