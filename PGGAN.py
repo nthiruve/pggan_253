@@ -367,7 +367,7 @@ class PGGAN(object):
 
             return de   #tanh given in text to image code. will this work?
 
-    def test(self, test_list):
+    def test(self, test_list,caption_idx=0):
 
         init = tf.global_variables_initializer()
         config = tf.ConfigProto()
@@ -391,13 +391,18 @@ class PGGAN(object):
 	    #test_list = self.data_In.getNextBatch(batch_num, self.batch_size)
 	    #realbatch_array = CelebA.getShapeForData(test_list, resize_w=self.output_size)
 	    text_em = []
-	    for file_name in test_list:
-		key = file_name
-		idx = self.file_idx[key]
+	    #for file_name in test_list
+            key = test_list[0]
+            idx = self.test_file_idx[key]
 		#caption_idx = np.random.randint(0,10)
-                caption_idx=1
+            for i in range(10):
+                
                 text_em.append(self.embeddings_all[idx][caption_idx])
-	    text_em = np.array(text_em)
+            for i in range(10):
+                
+                text_em.append(self.embeddings_all[idx][caption_idx])
+            text_em = np.array(text_em)
+	    text_em = np.array(text_em[:16])
 	    #print "Text em shape: "+str(text_em.shape)
 	    
 
@@ -408,7 +413,7 @@ class PGGAN(object):
             		      feed_dict={#self.images: realbatch_array, 
             			  self.z: sample_z, self.text_embedding: text_em})
             fake_image = np.clip(fake_image, -1, 1)
-            save_images(fake_image[0:self.batch_size], [2, self.batch_size/2], 'generated_images/test_epoch5_2.png')
+            save_images(fake_image[0:self.batch_size], [2, self.batch_size/2], 'generated_images/test'+key+'.jpg')
             
 
         tf.reset_default_graph()

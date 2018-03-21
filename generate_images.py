@@ -4,6 +4,7 @@ from utils import mkdir_p
 from PGGAN import PGGAN
 from utils import CelebA
 flags = tf.app.flags
+import sys
 
 flags.DEFINE_integer("OPER_FLAG", 0, "the flag of opertion: 0 is for training ")
 flags.DEFINE_string("path" , 'train_images/', "the path of training data, for example /home/hehe/celebA/")
@@ -14,8 +15,9 @@ flags.DEFINE_float("learn_rate", 0.0001, "the learning rate for G and D networks
 flags.DEFINE_float("flag", 4, "the FLAG of gan training process")
 
 FLAGS = flags.FLAGS
-if __name__ == "__main__":
-
+#if __name__ == "__main__":
+#    main()
+def main():
     root_log_dir = "./logs/"
     mkdir_p(root_log_dir)
     batch_size = FLAGS.batch_size
@@ -25,11 +27,11 @@ if __name__ == "__main__":
 
     OPER_FLAG = FLAGS.OPER_FLAG
     data_In = CelebA(FLAGS.path)
-    print ("the num of dataset", len(data_In.image_list))
+    #print ("the num of dataset", len(data_In.image_list))
 
     if OPER_FLAG == 0:
-        r_fl = 5
-        test_list = ['image_06488']*16
+        r_fl = 6
+        test_list = [sys.argv[1]]
 #'image_03902', 'image_06751', 'image_06069',
        #'image_05211', 'image_05757', 'image_05758',
        #'image_05105', 'image_03877', 'image_04325',
@@ -49,4 +51,7 @@ if __name__ == "__main__":
                       sample_path=sample_path, log_dir=root_log_dir, learn_rate=GAN_learn_rate, PG= r_fl, t=t)
 
         pggan.build_model_PGGan()
-        pggan.test(test_list)
+        pggan.test(test_list,int(sys.argv[2]))
+
+if __name__ == "__main__":
+    main()
