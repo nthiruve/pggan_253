@@ -29,14 +29,14 @@ if __name__ == "__main__":
 
     if OPER_FLAG == 0:
 
-        #fl = [1,2,2,3,3,4,4,5,5, 6, 6]
-        fl = [ 6,6]
-        #r_fl = [1,1,2,2,3,3,4,4,5, 5, 6]
-        r_fl = [ 5,6]
+        fl = [1,2,2,3,3,4,4,5,5, 6, 6]
+        #fl = [ 6,6]
+        r_fl = [1,1,2,2,3,3,4,4,5, 5, 6]
+        #r_fl = [ 5,6]
 
         for i in range(FLAGS.flag):
 
-            t = True if (i % 2 == 0) else False
+            t = False if (i % 2 == 0) else True
             pggan_checkpoint_dir_write = "./model_flowers_{}/{}/".format(OPER_FLAG, fl[i])
             sample_path = "./PGGanFlowers/{}/sample_{}_{}".format(FLAGS.OPER_FLAG, fl[i], t)
             mkdir_p(pggan_checkpoint_dir_write)
