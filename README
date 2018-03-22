@@ -1,2 +1,8 @@
-Unzip the birds.tar.gz for the data 
-The 'birds' folder needs to be in the same directory as main.py.
+The checkpoint of the best model out of the models we trained - Progressive GAN with Wasserstein loss and gradient penalty at resolution 64 X 64, 
+the train and test set images and the embeddings(flowers) are available as zipped files in the following drive links.
+
+Download and unzip them in the working directory. 
+
+Training :
+
+
