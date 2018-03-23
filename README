@@ -1,8 +1,17 @@
 The checkpoint of the best model out of the models we trained - Progressive GAN with Wasserstein loss and gradient penalty at resolution 64 X 64, 
-the train and test set images and the embeddings(flowers) are available as zipped files in the following drive links.
+the train and test set images and the embeddings(flowers) are available as zipped files in the following drive link :
+https://drive.google.com/drive/folders/139zKu5AQ3d5DHrL8g6eJ76qFFk8JhFuz?usp=sharing
 
 Download and unzip them in the working directory. 
 
 Training :
+Run the training by running python main.py. r_fl parameter in the code represents the directory to read the checpoint from and fl paramater 
+represents the checkpoint that we are creating. Checkpoints correspond to epochs of training. 
+Model checkpoints get created under model_flowers_0.
 
-
+Testing :
+Create a directory generated_images for storing generated images. 
+Run bash generate_all.sh to generate images for all 10 captions corresponding to each test image. If you want multiple images generated
+for the same caption, you can change the third parameter to the corresponding caption index instead of -1. Also you can change 
+FILES variable with wildcard characters to generate for a subset of test images.
+Currently the script generates by taking checkpoint 5 which is the model provided in the drive link.
