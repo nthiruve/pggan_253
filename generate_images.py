@@ -30,7 +30,7 @@ def main():
     #print ("the num of dataset", len(data_In.image_list))
 
     if OPER_FLAG == 0:
-        r_fl = 6
+        r_fl = 5
         test_list = [sys.argv[1]]
 #'image_03902', 'image_06751', 'image_06069',
        #'image_05211', 'image_05757', 'image_05758',
