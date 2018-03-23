@@ -80,24 +80,35 @@ class PGGAN(object):
 #
 
 	#loss acoording to reid scott
-	self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.ones_like(disc_fake_image)))
-		
-	d_loss1 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real_image_logits, labels=tf.ones_like(disc_real_image)))
+	#self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.ones_like(disc_fake_image)))
+	#d_loss1 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_real_image_logits, labels=tf.ones_like(disc_real_image)))
 	#TODO FIXME !!! uncomment
         #d_loss2 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(disc_wrong_image_logits, tf.zeros_like(disc_wrong_image)))
-	d_loss3 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.zeros_like(disc_fake_image)))
+	#d_loss3 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_fake_image_logits, labels=tf.zeros_like(disc_fake_image)))
 
-	self.D_loss = d_loss1 +  d_loss3 #+ d_loss2
+	
+        #self.D_loss = d_loss1 +  d_loss3 #+ d_loss2
+
+	#losses
+	self.G_loss=-tf.reduce_mean(disc_fake_image_logits)	
+	self.D_loss=tf.reduce_mean(disc_fake_image_logits) - tf.reduce_mean(disc_real_image_logits)
+	
+	##gradient penalty
+        self.differences = self.fake_images - self.images
+        self.alpha = tf.random_uniform(shape=[self.batch_size, 1, 1, 1], minval=0., maxval=1.)
+        interpolates = self.images + (self.alpha * self.differences)
+        _, discri_logits= self.discriminate(interpolates, self.text_embedding, reuse=True, pg=self.pg, t=self.trans, alpha_trans=self.alpha_tra)
+        gradients = tf.gradients(discri_logits, [interpolates])[0]
 
         ##2 norm
-#        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
-#        self.gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-#        tf.summary.scalar("gp_loss", self.gradient_penalty)
+        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1, 2, 3]))
+        self.gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
+        tf.summary.scalar("gp_loss", self.gradient_penalty)
 #
-#        self.D_origin_loss = self.D_loss
+        #self.D_origin_loss = self.D_loss
 #
-#        self.D_loss += 10 * self.gradient_penalty
-#        self.D_loss += 0.001 * tf.reduce_mean(tf.square(self.D_pro_logits - 0.0))
+        self.D_loss += 10 * self.gradient_penalty
+        self.D_loss += 0.001 * tf.reduce_mean(tf.square(disc_fake_image_logits - 0.0))
 #
         self.log_vars.append(("generator_loss", self.G_loss))
         self.log_vars.append(("discriminator_loss", self.D_loss))
@@ -202,7 +213,7 @@ class PGGAN(object):
             while step <= self.max_iters:
 
                 # optimization D
-                n_critic = 1
+                n_critic = 3    #changed to 3 from 1
                 if self.pg == 5 and self.trans:
                     n_critic = 1
 
@@ -218,7 +229,7 @@ class PGGAN(object):
                     for file_name in train_list:
                         key = file_name.split('/')[-1].replace('.jpg','')
                         idx = self.file_idx[key]
-                        caption_idx = np.random.randint(0,10)
+                        caption_idx = np.random.randint(0,5)
                         text_em.append(self.embeddings_all[idx][caption_idx])
                     text_em = np.array(text_em)
                     #print "Text em shape: "+str(text_em.shape)
@@ -417,10 +428,11 @@ class PGGAN(object):
             		      feed_dict={#self.images: realbatch_array, 
             			  self.z: sample_z, self.text_embedding: text_em})
             fake_image = np.clip(fake_image, -1, 1)
-            save_images(fake_image[0:10], [2, 5], 'generated_images/test_'+key+'.jpg') #changed this line to save 10 images corresponding to captions
+            save_images(fake_image[0:10], [2, 5], 'generated_images_testing/test_'+key+'.jpg') #changed this line to save 10 images corresponding to captions
             
 
         tf.reset_default_graph()
+            
 
 
 
